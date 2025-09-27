@@ -322,6 +322,16 @@ def new_announcement():
         return redirect(url_for('main.announcements'))
     return render_template('create_announcement.html', title='New Announcement', form=form)
 
+@main_bp.route("/announcement/<int:announcement_id>/delete", methods=['POST'])
+@login_required
+@roles_required('Admin', 'Manager')
+def delete_announcement(announcement_id):
+    announcement = Announcement.query.get_or_404(announcement_id)
+    db.session.delete(announcement)
+    db.session.commit()
+    flash('The announcement has been deleted.', 'success')
+    return redirect(url_for('main.announcements'))
+
 
 @main_bp.route("/messages")
 @login_required

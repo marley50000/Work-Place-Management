@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="content-section">
+    <h1 class="mb-4">My Documents</h1>
+
+    {% if docs %}
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Filename</th>
+                        <th>Category</th>
+                        <th>Uploaded</th>
+                        <th>Expiry</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for doc in docs %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('static', filename='uploads/' ~ doc.filename) }}" target="_blank">
+                                {{ doc.filename }}
+                            </a>
+                        </td>
+                        <td>{{ doc.category }}</td>
+                        <td>{{ doc.upload_date.strftime('%Y-%m-%d') }}</td>
+                        <td>
+                            {% if doc.expiry_date %}
+                                {{ doc.expiry_date.strftime('%Y-%m-%d') }}
+                            {% else %}
+                                &mdash;
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p>No documents found.</p>
+    {% endif %}
+</div>
+{% endblock content %}

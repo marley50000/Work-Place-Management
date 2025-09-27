@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block content %}
+    <div class="content-section">
+        <h1 class="mb-4">All Leave Requests</h1>
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Employee</th>
+                        <th>Start Date</th>
+                        <th>End Date</th>
+                        <th>Reason</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for request in requests %}
+                        <tr>
+                            <td>{{ request.user.username }}</td>
+                            <td>{{ request.start_date.strftime('%Y-%m-%d') }}</td>
+                            <td>{{ request.end_date.strftime('%Y-%m-%d') }}</td>
+                            <td>{{ request.reason }}</td>
+                            <td>
+                                {% if request.status == 'Approved' %}
+                                    <span class="badge bg-success">{{ request.status }}</span>
+                                {% elif request.status == 'Rejected' %}
+                                    <span class="badge bg-danger">{{ request.status }}</span>
+                                {% else %}
+                                    <span class="badge bg-warning">{{ request.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if request.status != 'Approved' %}
+                                    <form action="{{ url_for('main.approve_leave_request', request_id=request.id) }}" method="POST" class="d-inline">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-success btn-sm">Approve</button>
+                                    </form>
+                                {% endif %}
+                                {% if request.status != 'Rejected' %}
+                                    <form action="{{ url_for('main.reject_leave_request', request_id=request.id) }}" method="POST" class="d-inline">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-danger btn-sm">Reject</button>
+                                    </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="6">No leave requests found.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock content %}
+
+{% block scripts %}          <!-- add this extra block at the bottom -->
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+
+    document.querySelectorAll('form.d-inline').forEach(form => {
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();                    // stop full-page refresh
+            const res = await fetch(form.action, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: new URLSearchParams(new FormData(form))
+            });
+            if (!res.ok) return;                   // simple error guard
+            const data = await res.json();         // {status: 'Approved' | 'Rejected'}
+            // update UI
+            const row = form.closest('tr');
+            const statusCell = row.querySelector('td:nth-child(5)');
+            if (data.status === 'Approved') {
+                statusCell.innerHTML = '<span class="badge bg-success">Approved</span>';
+            } else {
+                statusCell.innerHTML = '<span class="badge bg-danger">Rejected</span>';
+            }
+            // remove action buttons
+            row.querySelector('td:nth-child(6)').innerHTML = '';
+        });
+    });
+});
+</script>
+{% endblock scripts %}

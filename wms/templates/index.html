@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block content %}
+    <div class="d-flex justify-content-between align-items-center">
+        <h1>My Dashboard</h1>
+        <div class="d-flex align-items-center">
+            {% if last_attendance and last_attendance.clock_out_time is none %}
+                <span class="badge bg-success me-3">Clocked In</span>
+                <form action="{{ url_for('main.clock_in_out') }}" method="POST">
+                    {{ clock_form.hidden_tag() }}
+                    <button type="submit" class="btn btn-danger">Clock Out</button>
+                </form>
+            {% else %}
+                <span class="badge bg-danger me-3">Clocked Out</span>
+                <form action="{{ url_for('main.clock_in_out') }}" method="POST">
+                    {{ clock_form.hidden_tag() }}
+                    <button type="submit" class="btn btn-success">Clock In</button>
+                </form>
+            {% endif %}
+            {% if current_user.role in ['Admin', 'Manager'] %}
+                <a class="btn btn-primary ms-auto" href="{{ url_for('main.new_task') }}">Create New Task</a>
+            {% endif %}
+        </div>
+    </div>
+    <p>You are logged in as {{ current_user.username }} ({{ current_user.role }})</p>
+    <hr>
+
+    <div class="row">
+        <div class="col-md-8">
+            <h2>My Assigned Tasks</h2>
+            <div class="list-group mb-4">
+                {% for task in tasks %}
+                    <a href="#" class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h5 class="mb-1">{{ task.title }}</h5>
+                            <small>Deadline: {{ task.deadline.strftime('%Y-%m-%d') }}</small>
+                        </div>
+                        <p class="mb-1">{{ task.description }}</p>
+                        <small>Status: {{ task.status }} | Priority: {{ task.priority }} | Assigned by: {{ task.assigned_by.username }}</small>
+                    </a>
+                {% else %}
+                    <div class="list-group-item">
+                        You have no tasks assigned to you.
+                    </div>
+                {% endfor %}
+            </div>
+
+            <h2>My Goals</h2>
+            <a class="btn btn-info btn-sm mb-2" href="{{ url_for('main.new_goal') }}">Set New Goal</a>
+            <div class="list-group">
+                {% for goal in goals %}
+                    <a href="{{ url_for('main.edit_goal', goal_id=goal.id) }}" class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h5 class="mb-1">{{ goal.title }}</h5>
+                            <small>Status: {{ goal.status }}</small>
+                        </div>
+                        <p class="mb-1">{{ goal.description }}</p>
+                    </a>
+                {% else %}
+                    <div class="list-group-item">
+                        You have no active goals.
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="col-md-4">
+            <h2>My Shifts</h2>
+            {% if current_user.role in ['Admin', 'Manager'] %}
+                <a class="btn btn-secondary btn-sm mb-2" href="{{ url_for('main.new_shift') }}">Schedule New Shift</a>
+            {% endif %}
+            <div class="list-group">
+                {% for shift in shifts %}
+                    <div class="list-group-item">
+                        <p class="mb-1"><strong>Start:</strong> {{ shift.start_time.strftime('%Y-%m-%d %H:%M') }}</p>
+                        <p class="mb-1"><strong>End:</strong> {{ shift.end_time.strftime('%Y-%m-%d %H:%M') }}</p>
+                    </div>
+                {% else %}
+                    <div class="list-group-item">
+                        You have no shifts scheduled.
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <hr>
+
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <h3>Recent Attendance</h3>
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Clock In</th>
+                        <th>Clock Out</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in attendance_history %}
+                        <tr>
+                            <td>{{ entry.clock_in_time.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td>{{ entry.clock_out_time.strftime('%Y-%m-%d %H:%M') if entry.clock_out_time else 'Still Clocked In' }}</td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="2">No attendance records found.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="col-md-6">
+            <h3>My Leave Requests</h3>
+            <div class="list-group">
+                {% for request in leave_requests %}
+                    <div class="list-group-item">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">{{ request.start_date.strftime('%Y-%m-%d') }} to {{ request.end_date.strftime('%Y-%m-%d') }}</h6>
+                            {% if request.status == 'Approved' %}
+                                <span class="badge bg-success">{{ request.status }}</span>
+                            {% elif request.status == 'Rejected' %}
+                                <span class="badge bg-danger">{{ request.status }}</span>
+                            {% else %}
+                                <span class="badge bg-warning">{{ request.status }}</span>
+                            {% endif %}
+                        </div>
+                        <p class="mb-1">{{ request.reason }}</p>
+                    </div>
+                {% else %}
+                    <div class="list-group-item">
+                        You have no leave requests.
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+{% endblock content %}

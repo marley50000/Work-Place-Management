@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+    <div class="content-section">
+        <div class="row">
+            <div class="col-md-4">
+                <h2>Conversations</h2>
+                <div class="list-group">
+                    {% for user in conversations %}
+                        <a href="{{ url_for('main.conversation', recipient_id=user.id) }}" class="list-group-item list-group-item-action">{{ user.username }}</a>
+                    {% else %}
+                        <div class="list-group-item">You have no existing conversations.</div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="col-md-8">
+                <h2>Start a New Conversation</h2>
+                <div class="list-group">
+                    {% for user in all_users %}
+                        <a href="{{ url_for('main.conversation', recipient_id=user.id) }}" class="list-group-item list-group-item-action">{{ user.username }}</a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock content %}

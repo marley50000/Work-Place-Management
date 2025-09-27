@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+    <div class="content-section">
+        <h2 class="mb-4">Conversation with {{ recipient.username }}</h2>
+        <div class="message-history mb-4" style="height: 400px; overflow-y: scroll; border: 1px solid #ccc; padding: 10px;">
+            {% for message in messages %}
+                <div class="message mb-2 {% if message.sender_id == current_user.id %}text-end{% endif %}">
+                    <small class="fw-bold">{{ message.sender.username }}</small>
+                    <div class="p-2 rounded {% if message.sender_id == current_user.id %}bg-primary text-white{% else %}bg-light{% endif %}">
+                        {{ message.content }}
+                    </div>
+                    <small class="text-muted">{{ message.timestamp.strftime('%Y-%m-%d %H:%M') }}</small>
+                </div>
+            {% else %}
+                <p>No messages yet. Start the conversation!</p>
+            {% endfor %}
+        </div>
+        <form method="POST" action="">
+            {{ form.hidden_tag() }}
+            <fieldset class="form-group">
+                {{ form.content(class="form-control", rows="3") }}
+            </fieldset>
+            <div class="form-group mt-2">
+                {{ form.submit(class="btn btn-primary") }}
+            </div>
+        </form>
+    </div>
+{% endblock content %}

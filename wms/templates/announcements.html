@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block content %}
+    <div class="content-section">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>Announcements</h1>
+            {% if current_user.role in ['Admin', 'Manager'] %}
+                <a href="{{ url_for('main.new_announcement') }}" class="btn btn-primary">New Announcement</a>
+            {% endif %}
+        </div>
+        {% for announcement in announcements %}
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">{{ announcement.title }}</h5>
+                    <p class="card-text">{{ announcement.content }}</p>
+                    <p class="card-text"><small class="text-muted">Posted by {{ announcement.user.username }} on {{ announcement.date_posted.strftime('%Y-%m-%d') }}</small></p>
+                </div>
+            </div>
+        {% else %}
+            <div class="alert alert-info">
+                No announcements yet.
+            </div>
+        {% endfor %}
+    </div>
+{% endblock content %}

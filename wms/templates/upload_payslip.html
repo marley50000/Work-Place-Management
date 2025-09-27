@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+    <div class="content-section">
+        <form method="POST" enctype="multipart/form-data">
+            {{ form.hidden_tag() }}
+            <fieldset class="form-group">
+                <legend class="border-bottom mb-4">Upload Payslip</legend>
+                <div class="form-group mb-3">
+                    {{ form.file.label(class="form-control-label") }}
+                    {{ form.file(class="form-control-file") }}
+                    {% if form.file.errors %}
+                        <div class="invalid-feedback d-block">
+                            {% for error in form.file.errors %}
+                                <span>{{ error }}</span>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </fieldset>
+            <div class="form-group">
+                {{ form.submit(class="btn btn-success") }}
+            </div>
+        </form>
+    </div>
+{% endblock content %}

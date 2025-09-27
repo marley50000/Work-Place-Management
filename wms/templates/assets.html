@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block content %}
+    <div class="content-section">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>Asset Management</h1>
+            <a href="{{ url_for('main.new_asset') }}" class="btn btn-primary">Add New Asset</a>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Description</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for asset in assets %}
+                        <tr>
+                            <td>{{ asset.name }}</td>
+                            <td>{{ asset.description }}</td>
+                            <td>{{ asset.status }}</td>
+                            <td>
+                                {% if asset.status == 'Available' %}
+                                    <form action="{{ url_for('main.checkout_asset', asset_id=asset.id) }}" method="POST" class="d-inline">
+                                        {{ form.hidden_tag() }}
+                                        <button type="submit" class="btn btn-success btn-sm">Check Out</button>
+                                    </form>
+                                {% elif asset.status == 'Checked Out' %}
+                                    <form action="{{ url_for('main.checkin_asset', asset_id=asset.id) }}" method="POST" class="d-inline">
+                                        {{ form.hidden_tag() }}
+                                        <button type="submit" class="btn btn-warning btn-sm">Check In</button>
+                                    </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="4">No assets found.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock content %}

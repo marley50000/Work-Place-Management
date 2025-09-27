@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block content %}
+    <div class="content-section">
+        <h1 class="mb-4">Analytics Dashboard</h1>
+
+        <div class="chart-container" style="position: relative; height:40vh; width:80vw">
+            <canvas id="attendanceChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        const ctx = document.getElementById('attendanceChart');
+        const chartData = JSON.parse('{{ chart_data | safe }}');
+
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: chartData.labels,
+                datasets: [{
+                    label: 'Total Hours Worked',
+                    data: chartData.data,
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    </script>
+{% endblock content %}

@@ -101,6 +101,8 @@ class EvaluationForm(FlaskForm):
 class AnnouncementForm(FlaskForm):
     title = StringField('Title', validators=[DataRequired()])
     content = TextAreaField('Content', validators=[DataRequired()])
+    image = FileField('Upload Image (Optional)', validators=[FileAllowed(['jpg', 'png', 'jpeg', 'gif'], 'Images only!'), Optional()])
+    video = FileField('Upload Video (Optional)', validators=[FileAllowed(['mp4', 'avi', 'mov', 'webm'], 'Videos only!'), Optional()])
     submit = SubmitField('Post Announcement')
 
 class MessageForm(FlaskForm):

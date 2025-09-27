@@ -14,6 +14,7 @@ from werkzeug.utils import secure_filename
 from flask import current_app, jsonify
 from sqlalchemy import or_
 import json
+from collections import Counter
 
 main_bp = Blueprint('main', __name__)
 
@@ -297,7 +298,23 @@ def view_evaluations(user_id):
         abort(403)
 
     evaluations = user.evaluations_received
-    return render_template('view_evaluations.html', title='View Evaluations', user=user, evaluations=evaluations)
+
+    # Calculate statistics for visualizations
+    ratings = [e.rating for e in evaluations]
+    average_rating = sum(ratings) / len(ratings) if ratings else 0
+
+    # For pie chart: distribution of ratings
+    rating_counts = Counter(ratings)
+    rating_labels = [str(i) for i in range(1, 6)]
+    rating_data = [rating_counts[i] for i in range(1, 6)]
+
+    return render_template('view_evaluations.html',
+                           title='View Evaluations',
+                           user=user,
+                           evaluations=evaluations,
+                           average_rating=f"{average_rating:.2f}",
+                           rating_labels=json.dumps(rating_labels),
+                           rating_data=json.dumps(rating_data))
 
 
 @main_bp.route("/announcements")
@@ -307,15 +324,45 @@ def announcements():
     return render_template('announcements.html', title='Announcements', announcements=all_announcements)
 
 
+UPLOAD_FOLDER = 'c:\\Users\\Spark Marley\\Desktop\\julies-try 3\\wms\\static\\uploads'
+ANNOUNCEMENT_FOLDER = os.path.join(UPLOAD_FOLDER, 'announcements')
+if not os.path.exists(ANNOUNCEMENT_FOLDER):
+    os.makedirs(ANNOUNCEMENT_FOLDER)
+
+def save_announcement_media(media_file, media_type):
+    random_hex = secrets.token_hex(8)
+    _, f_ext = os.path.splitext(media_file.filename)
+    media_filename = random_hex + f_ext
+    media_path = os.path.join(ANNOUNCEMENT_FOLDER, media_filename)
+
+    if media_type == 'image':
+        output_size = (1250, 750) # Resize image for consistency
+        i = Image.open(media_file)
+        i.thumbnail(output_size)
+        i.save(media_path)
+    elif media_type == 'video':
+        media_file.save(media_path) # Save video directly
+    return media_filename
+
 @main_bp.route("/announcement/new", methods=['GET', 'POST'])
 @login_required
 @roles_required('Admin', 'Manager')
 def new_announcement():
     form = AnnouncementForm()
     if form.validate_on_submit():
+        image_file = None
+        video_file = None
+
+        if form.image.data:
+            image_file = save_announcement_media(form.image.data, 'image')
+        if form.video.data:
+            video_file = save_announcement_media(form.video.data, 'video')
+
         announcement = Announcement(title=form.title.data,
                                     content=form.content.data,
-                                    user=current_user)
+                                    user=current_user,
+                                    image_file=image_file,
+                                    video_file=video_file)
         db.session.add(announcement)
         db.session.commit()
         flash('Your announcement has been posted.', 'success')
@@ -432,7 +479,7 @@ def checkin_asset(asset_id):
 # --- NEW ROUTE -------------------------------------------------------
 @main_bp.route("/payslip/upload", methods=['GET', 'POST'])
 @login_required
-@roles_required('Admin', 'Manager')        # ← NEW line (access control)
+@roles_required('Admin', 'Manager')        # ← NEW guard (access control)
 def upload_payslip():
     form = PayslipUploadForm()
     if form.validate_on_submit():
@@ -519,3 +566,11 @@ def profile_picture():
         return redirect(url_for('main.profile_picture'))
     
     return render_template('profile_picture.html', title='Profile Picture', form=form)
+
+
+@main_bp.route("/manage_employees")
+@login_required
+@roles_required('Admin', 'Manager')
+def manage_employees():
+    users = User.query.all()
+    return render_template('manage_employees.html', title='Manage Employees', users=users)

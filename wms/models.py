@@ -137,6 +137,8 @@ class Announcement(db.Model):
     date_posted = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     user = db.relationship('User', backref='announcements')
+    image_file = db.Column(db.String(100), nullable=True)  # New field for image
+    video_file = db.Column(db.String(100), nullable=True)  # New field for video
 
     def __repr__(self):
         return f"Announcement('{self.title}', '{self.date_posted}')"

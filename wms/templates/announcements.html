@@ -12,6 +12,15 @@
                 <div class="card-body">
                     <h5 class="card-title">{{ announcement.title }}</h5>
                     <p class="card-text">{{ announcement.content }}</p>
+                    {% if announcement.image_file %}
+                        <img src="{{ url_for('static', filename='uploads/announcements/' + announcement.image_file) }}" class="img-fluid mb-2" alt="Announcement Image">
+                    {% endif %}
+                    {% if announcement.video_file %}
+                        <video controls class="img-fluid mb-2">
+                            <source src="{{ url_for('static', filename='uploads/announcements/' + announcement.video_file) }}" type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                    {% endif %}
                     <p class="card-text"><small class="text-muted">Posted by {{ announcement.user.username }} on {{ announcement.date_posted.strftime('%Y-%m-%d') }}</small></p>
                     {% if current_user.role in ['Admin', 'Manager'] %}
                         <form action="{{ url_for('main.delete_announcement', announcement_id=announcement.id) }}" method="POST" class="d-inline">

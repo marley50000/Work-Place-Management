@@ -657,13 +657,42 @@ def profile_picture():
 @roles_required('Admin')
 def admin_reset_password():
     form = AdminPasswordResetForm()
+    users = User.query.all()
+    
     if form.validate_on_submit():
         user = User.query.filter_by(email=form.email.data).first()
         if user:
             user.set_password(form.new_password.data)
             db.session.commit()
             flash(f'Password has been reset for {user.username}', 'success')
-            return redirect(url_for('main.home'))
+            return redirect(url_for('main.admin_reset_password'))
         else:
             flash('User with that email not found', 'danger')
-    return render_template('admin_reset_password.html', title='Admin Password Reset', form=form)
+    
+    # Pre-fill email if provided in query parameter
+    if request.args.get('email'):
+        form.email.data = request.args.get('email')
+    
+    return render_template('admin_reset_password.html', title='Admin Password Reset', form=form, users=users)
+
+@main_bp.route('/admin/user/<int:user_id>/edit_role', methods=['POST'])
+@login_required
+@roles_required('Admin')
+def edit_user_role(user_id):
+    user = User.query.get_or_404(user_id)
+    new_role = request.form.get('role')
+    
+    if new_role in ['Admin', 'Manager', 'Employee']:
+        user.role = new_role
+        db.session.commit()
+        flash(f'User {user.username} role updated to {new_role}!', 'success')
+    else:
+        flash('Invalid role selected!', 'danger')
+    
+    return redirect(url_for('main.admin_reset_password'))
+    return redirect(url_for('main.admin_users'))
+    
+    # Pre-populate form with current role
+    form.role.data = user.role
+    
+    return render_template('edit_user_role.html', title='Edit User Role', form=form, user=user)

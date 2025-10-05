@@ -125,3 +125,9 @@ class AdminPasswordResetForm(FlaskForm):
     new_password = PasswordField('New Password', validators=[DataRequired()])
     confirm_password = PasswordField('Confirm New Password', validators=[DataRequired(), EqualTo('new_password')])
     submit = SubmitField('Reset Password')
+
+
+class UserRoleForm(FlaskForm):
+    role = SelectField('Role', choices=[('Employee', 'Employee'), ('Manager', 'Manager'), ('Admin', 'Admin')],
+                       validators=[DataRequired()])
+    submit = SubmitField('Update Role')

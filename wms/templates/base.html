@@ -97,7 +97,7 @@
                             <li class="nav-item"><a class="nav-link" href="{{ url_for('main.documents') }}"><i class="fas fa-file-upload me-1"></i>Manage Documents</a></li>
                             <li class="nav-item"><a class="nav-link" href="{{ url_for('main.analytics') }}"><i class="fas fa-chart-bar me-1"></i>Analytics</a></li>
                             {% if current_user.role == 'Admin' %}
-                                <li class="nav-item"><a class="nav-link" href="{{ url_for('main.admin_reset_password') }}"><i class="fas fa-key me-1"></i>Reset User Passwords</a></li>
+                                <li class="nav-item"><a class="nav-link" href="{{ url_for('main.admin_reset_password') }}"><i class="fas fa-users-cog me-1"></i>Manage Users</a></li>
                             {% endif %}
                         {% endif %}
                     {% endif %}

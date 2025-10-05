@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html data-bs-theme="light">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Bootstrap CSS -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Font Awesome -->
@@ -17,8 +17,52 @@
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    
+    <!-- Particle.js for animated background -->
+    <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
+    
+    <!-- Custom cursor effects -->
+    <style>
+        .custom-cursor {
+            position: fixed;
+            width: 20px;
+            height: 20px;
+            background: rgba(67, 97, 238, 0.3);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 9999;
+            transition: transform 0.1s ease;
+            mix-blend-mode: difference;
+        }
+        
+        .cursor-follower {
+            position: fixed;
+            width: 40px;
+            height: 40px;
+            border: 2px solid rgba(67, 97, 238, 0.3);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 9998;
+            transition: all 0.3s ease;
+        }
+        
+        * {
+            cursor: none;
+        }
+        
+        a, button, .btn, .nav-link {
+            cursor: none;
+        }
+    </style>
 </head>
 <body>
+    <!-- Particles container -->
+    <div id="particles-js" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;"></div>
+    
+    <!-- Custom cursor elements -->
+    <div class="custom-cursor"></div>
+    <div class="cursor-follower"></div>
+    
     <nav class="navbar navbar-expand-lg navbar-dark shadow-sm sticky-top">
         <div class="container-fluid">
             <a class="navbar-brand" href="#"><i class="fas fa-tasks me-2"></i>WMS</a>
@@ -31,7 +75,18 @@
                         <!-- items visible to every logged-in user -->
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('main.home') }}"><i class="fas fa-home me-1"></i>Home</a></li>
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('main.announcements') }}"><i class="fas fa-bullhorn me-1"></i>Announcements</a></li>
-                        <li class="nav-item"><a class="nav-link" href="{{ url_for('main.messages') }}"><i class="fas fa-comments me-1"></i>Messages</a></li>
+                        <!-- Replace the Messages nav item with this -->
+                        <li class="nav-item">
+                            <a class="nav-link position-relative" href="{{ url_for('main.messages') }}">
+                                <i class="fas fa-comments me-1"></i>Messages
+                                {% if unread_messages_count > 0 %}
+                                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                                        {{ unread_messages_count }}
+                                        <span class="visually-hidden">unread messages</span>
+                                    </span>
+                                {% endif %}
+                            </a>
+                        </li>
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('main.new_leave_request') }}"><i class="fas fa-plane-departure me-1"></i>Request Leave</a></li>
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('main.view_evaluations', user_id=current_user.id) }}"><i class="fas fa-star me-1"></i>My Evaluations</a></li>
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('main.my_documents') }}"><i class="fas fa-folder-open me-1"></i>My Documents</a></li>
@@ -41,11 +96,19 @@
                             <li class="nav-item"><a class="nav-link" href="{{ url_for('main.leave_requests') }}"><i class="fas fa-tasks me-1"></i>Leave Requests</a></li>
                             <li class="nav-item"><a class="nav-link" href="{{ url_for('main.documents') }}"><i class="fas fa-file-upload me-1"></i>Manage Documents</a></li>
                             <li class="nav-item"><a class="nav-link" href="{{ url_for('main.analytics') }}"><i class="fas fa-chart-bar me-1"></i>Analytics</a></li>
-                            <li class="nav-item"><a class="nav-link" href="{{ url_for('main.manage_employees') }}"><i class="fas fa-users me-1"></i>Manage Employees</a></li>
+                            {% if current_user.role == 'Admin' %}
+                                <li class="nav-item"><a class="nav-link" href="{{ url_for('main.admin_reset_password') }}"><i class="fas fa-key me-1"></i>Reset User Passwords</a></li>
+                            {% endif %}
                         {% endif %}
                     {% endif %}
                 </ul>
                 <ul class="navbar-nav">
+                    <!-- Dark Mode Toggle -->
+                    <li class="nav-item me-2">
+                        <button class="btn btn-outline-light" id="darkModeToggle">
+                            <i class="fas fa-moon"></i>
+                        </button>
+                    </li>
                     {% if current_user.is_authenticated %}
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -86,7 +149,10 @@
         {% endwith %}
         {% block content %}{% endblock %}
     </div>
-    <footer class="bg-light text-center text-muted py-4 mt-5">
+    
+    <!-- Scripts Block for Page-Specific JavaScript -->
+    {% block scripts %}{% endblock %}
+    <footer class="bg-light text-center text-muted py-4 mt-5" id="footer">
   <div class="container">
     <p class="mb-0">
       © 2025 Workforce Management System. By:
@@ -96,6 +162,138 @@
   </div>
 </footer>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Dark Mode Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const darkModeToggle = document.getElementById('darkModeToggle');
+            const htmlElement = document.documentElement;
+            const icon = darkModeToggle.querySelector('i');
+            
+            // Check for saved theme preference or use preferred color scheme
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme) {
+                htmlElement.setAttribute('data-bs-theme', savedTheme);
+                updateIcon(savedTheme === 'dark');
+            } else {
+                // Use system preference as default
+                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                if (prefersDark) {
+                    htmlElement.setAttribute('data-bs-theme', 'dark');
+                    updateIcon(true);
+                }
+            }
+            
+            // Toggle theme on button click
+            darkModeToggle.addEventListener('click', function() {
+                const currentTheme = htmlElement.getAttribute('data-bs-theme');
+                const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                
+                htmlElement.setAttribute('data-bs-theme', newTheme);
+                localStorage.setItem('theme', newTheme);
+                
+                updateIcon(newTheme === 'dark');
+                updateFooter(newTheme);
+            });
+            
+            // Update icon based on theme
+            function updateIcon(isDark) {
+                if (isDark) {
+                    icon.classList.remove('fa-moon');
+                    icon.classList.add('fa-sun');
+                } else {
+                    icon.classList.remove('fa-sun');
+                    icon.classList.add('fa-moon');
+                }
+            }
+            
+            // Update footer based on theme
+            function updateFooter(theme) {
+                const footer = document.getElementById('footer');
+                if (theme === 'dark') {
+                    footer.classList.remove('bg-light');
+                    footer.classList.add('bg-dark');
+                } else {
+                    footer.classList.remove('bg-dark');
+                    footer.classList.add('bg-light');
+                }
+            }
+            
+            // Set initial footer class
+            updateFooter(htmlElement.getAttribute('data-bs-theme'));
+        });
+        
+        // Initialize particles.js
+        particlesJS('particles-js', {
+            particles: {
+                number: { value: 50, density: { enable: true, value_area: 800 } },
+                color: { value: '#4361ee' },
+                shape: { type: 'circle' },
+                opacity: { value: 0.3, random: true },
+                size: { value: 3, random: true },
+                line_linked: {
+                    enable: true,
+                    distance: 150,
+                    color: '#4361ee',
+                    opacity: 0.2,
+                    width: 1
+                },
+                move: {
+                    enable: true,
+                    speed: 2,
+                    direction: 'none',
+                    random: true,
+                    straight: false,
+                    out_mode: 'out',
+                    bounce: false
+                }
+            },
+            interactivity: {
+                detect_on: 'canvas',
+                events: {
+                    onhover: { enable: true, mode: 'grab' },
+                    onclick: { enable: true, mode: 'push' },
+                    resize: true
+                },
+                modes: {
+                    grab: { distance: 140, line_linked: { opacity: 0.5 } },
+                    push: { particles_nb: 4 }
+                }
+            },
+            retina_detect: true
+        });
+        
+        // Custom cursor effects
+        const cursor = document.querySelector('.custom-cursor');
+        const follower = document.querySelector('.cursor-follower');
+        
+        document.addEventListener('mousemove', (e) => {
+            cursor.style.left = e.clientX - 10 + 'px';
+            cursor.style.top = e.clientY - 10 + 'px';
+            
+            setTimeout(() => {
+                follower.style.left = e.clientX - 20 + 'px';
+                follower.style.top = e.clientY - 20 + 'px';
+            }, 100);
+        });
+        
+        // Cursor hover effects
+        const hoverElements = document.querySelectorAll('a, button, .btn, .nav-link, .card, .task-card');
+        
+        hoverElements.forEach(element => {
+            element.addEventListener('mouseenter', () => {
+                cursor.style.transform = 'scale(1.5)';
+                follower.style.transform = 'scale(1.2)';
+                follower.style.borderColor = 'rgba(67, 97, 238, 0.6)';
+            });
+            
+            element.addEventListener('mouseleave', () => {
+                cursor.style.transform = 'scale(1)';
+                follower.style.transform = 'scale(1)';
+                follower.style.borderColor = 'rgba(67, 97, 238, 0.3)';
+            });
+        });
+    </script>
 </body>
 </html>

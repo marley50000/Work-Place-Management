@@ -1,45 +1,150 @@
 {% extends "base.html" %}
 {% block content %}
-    <div class="d-flex justify-content-between align-items-center">
-        <h1>My Dashboard</h1>
-        <div class="d-flex align-items-center">
-            {% if last_attendance and last_attendance.clock_out_time is none %}
-                <span class="badge bg-success me-3">Clocked In</span>
-                <form action="{{ url_for('main.clock_in_out') }}" method="POST">
-                    {{ clock_form.hidden_tag() }}
-                    <button type="submit" class="btn btn-danger">Clock Out</button>
-                </form>
-            {% else %}
-                <span class="badge bg-danger me-3">Clocked Out</span>
-                <form action="{{ url_for('main.clock_in_out') }}" method="POST">
-                    {{ clock_form.hidden_tag() }}
-                    <button type="submit" class="btn btn-success">Clock In</button>
-                </form>
-            {% endif %}
-            {% if current_user.role in ['Admin', 'Manager'] %}
-                <a class="btn btn-primary ms-auto" href="{{ url_for('main.new_task') }}">Create New Task</a>
-            {% endif %}
+    <!-- Welcome Hero Section -->
+    <div class="hero-section mb-5">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="display-4 fw-bold text-white">
+                    <i class="fas fa-hand-wave me-3"></i>Welcome back, {{ current_user.username }}!
+                </h1>
+                <p class="lead text-white">Ready to make today productive? Here's your workspace overview.</p>
+            </div>
+            <div class="col-md-4 text-end">
+                <div class="clock-status-card">
+                    {% if last_attendance and last_attendance.clock_out_time is none %}
+                        <div class="status-indicator clocked-in">
+                            <i class="fas fa-circle pulse me-2"></i>
+                            <span class="fw-bold">Clocked In</span>
+                        </div>
+                        <form action="{{ url_for('main.clock_in_out') }}" method="POST" class="mt-2">
+                            {{ clock_form.hidden_tag() }}
+                            <button type="submit" class="btn btn-danger btn-lg">
+                                <i class="fas fa-sign-out-alt me-2"></i>Clock Out
+                            </button>
+                        </form>
+                    {% else %}
+                        <div class="status-indicator clocked-out">
+                            <i class="fas fa-circle me-2"></i>
+                            <span class="fw-bold">Clocked Out</span>
+                        </div>
+                        <form action="{{ url_for('main.clock_in_out') }}" method="POST" class="mt-2">
+                            {{ clock_form.hidden_tag() }}
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="fas fa-sign-in-alt me-2"></i>Clock In
+                            </button>
+                        </form>
+                    {% endif %}
+                </div>
+            </div>
         </div>
     </div>
-    <p>You are logged in as {{ current_user.username }} ({{ current_user.role }})</p>
-    <hr>
+
+    <!-- Quick Stats Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-icon bg-primary">
+                    <i class="fas fa-tasks"></i>
+                </div>
+                <div class="stats-content">
+                    <h3>{{ tasks|length }}</h3>
+                    <p>Active Tasks</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-icon bg-success">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div class="stats-content">
+                    <h3>{{ goals|length }}</h3>
+                    <p>Active Goals</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-icon bg-warning">
+                    <i class="fas fa-calendar"></i>
+                </div>
+                <div class="stats-content">
+                    <h3>{{ upcoming_shifts_count or shifts|length }}</h3>
+                    <p>Upcoming Shifts</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-icon bg-info">
+                    <i class="fas fa-envelope"></i>
+                </div>
+                <div class="stats-content">
+                    <h3>{{ unread_messages_count or 0 }}</h3>
+                    <p>Unread Messages</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if current_user.role in ['Admin', 'Manager'] %}
+        <div class="text-end mb-4">
+            <a class="btn btn-primary btn-lg" href="{{ url_for('main.new_task') }}">
+                <i class="fas fa-plus me-2"></i>Create New Task
+            </a>
+        </div>
+    {% endif %}
 
     <div class="row">
         <div class="col-md-8">
-            <h2>My Assigned Tasks</h2>
-            <div class="list-group mb-4">
+            <h2 class="section-title">
+                <i class="fas fa-tasks me-2"></i>{% if current_user.role in ['Admin', 'Manager'] %}My Tasks (Assigned & Created){% else %}My Assigned Tasks{% endif %}
+            </h2>
+            <div class="task-grid mb-4">
                 {% for task in tasks %}
-                    <a href="#" class="list-group-item list-group-item-action">
-                        <div class="d-flex w-100 justify-content-between">
-                            <h5 class="mb-1">{{ task.title }}</h5>
-                            <small>Deadline: {{ task.deadline.strftime('%Y-%m-%d') }}</small>
+                    <div class="task-card priority-{{ task.priority|lower }}">
+                        <div class="task-header">
+                            <div class="task-title">
+                                <h5 class="mb-1">{{ task.title }}</h5>
+                                <span class="task-priority badge priority-{{ task.priority|lower }}">
+                                    {{ task.priority }}
+                                </span>
+                            </div>
+                            <div class="task-deadline">
+                                <i class="fas fa-calendar-alt me-1"></i>
+                                {{ task.deadline.strftime('%b %d, %Y') if task.deadline }}
+                            </div>
                         </div>
-                        <p class="mb-1">{{ task.description }}</p>
-                        <small>Status: {{ task.status }} | Priority: {{ task.priority }} | Assigned by: {{ task.assigned_by.username }}</small>
-                    </a>
+                        <div class="task-body">
+                            <p class="task-description">{{ task.description }}</p>
+                            <div class="task-meta">
+                                <span class="task-status status-{{ task.status|lower|replace(' ', '-') }}">
+                                    {{ task.status }}
+                                </span>
+                                <span class="task-assigner">
+                                    <i class="fas fa-user me-1"></i>
+                                    {% if current_user.role in ['Admin', 'Manager'] and task.assigned_by == current_user %}
+                                        <span class="badge bg-info">Created by you</span>
+                                    {% else %}
+                                        {{ task.assigned_by.username }}
+                                    {% endif %}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="task-progress">
+                            <div class="progress">
+                                <div class="progress-bar progress-{{ task.status|lower|replace(' ', '-') }}" 
+                                     role="progressbar" 
+                                     style="width: {% if task.status == 'Completed' %}100%{% elif task.status == 'In Progress' %}60%{% else %}20%{% endif %}">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 {% else %}
-                    <div class="list-group-item">
-                        You have no tasks assigned to you.
+                    <div class="empty-state">
+                        <i class="fas fa-clipboard-check fa-3x mb-3 text-muted"></i>
+                        <h5>{% if current_user.role in ['Admin', 'Manager'] %}No tasks found{% else %}No tasks assigned yet{% endif %}</h5>
+                        <p class="text-muted">{% if current_user.role in ['Admin', 'Manager'] %}No tasks assigned to you or created by you yet.{% else %}You're all caught up! New tasks will appear here.{% endif %}</p>
                     </div>
                 {% endfor %}
             </div>
@@ -63,19 +168,49 @@
             </div>
         </div>
         <div class="col-md-4">
-            <h2>My Shifts</h2>
+            <h2>{% if current_user.role in ['Admin', 'Manager'] %}All Shifts{% else %}My Shifts{% endif %}</h2>
             {% if current_user.role in ['Admin', 'Manager'] %}
                 <a class="btn btn-secondary btn-sm mb-2" href="{{ url_for('main.new_shift') }}">Schedule New Shift</a>
             {% endif %}
             <div class="list-group">
                 {% for shift in shifts %}
                     <div class="list-group-item">
-                        <p class="mb-1"><strong>Start:</strong> {{ shift.start_time.strftime('%Y-%m-%d %H:%M') }}</p>
-                        <p class="mb-1"><strong>End:</strong> {{ shift.end_time.strftime('%Y-%m-%d %H:%M') }}</p>
+                        <div class="d-flex w-100 justify-content-between align-items-center">
+                            <div class="d-flex align-items-center">
+                                {% if current_user.role in ['Admin', 'Manager'] %}
+                                    <div class="me-3">
+                                        <img src="{{ url_for('static', filename='uploads/profile_pics/' + shift.user.profile_picture.filename) if shift.user.profile_picture else url_for('static', filename='uploads/profile_pics/default.jpg') }}" 
+                                             alt="{{ shift.user.username }}" 
+                                             class="rounded-circle" 
+                                             style="width: 40px; height: 40px; object-fit: cover;">
+                                    </div>
+                                {% endif %}
+                                <div>
+                                    <h5 class="mb-1">{{ shift.user.username }}</h5>
+                                    <small class="text-muted">{{ shift.start_time.strftime('%A, %b %d') }}</small>
+                                </div>
+                            </div>
+                            <div class="text-end">
+                                <div class="d-flex align-items-center mb-2">
+                                    <i class="fas fa-clock text-primary me-2"></i>
+                                    <span class="fw-bold">{{ shift.start_time.strftime('%H:%M') }} - {{ shift.end_time.strftime('%H:%M') }}</span>
+                                </div>
+                                <div class="shift-duration text-muted">
+                                    <small>
+                                        {% set duration = (shift.end_time - shift.start_time).total_seconds() / 3600 %}
+                                        {{ duration|round(1) }} hours
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 {% else %}
                     <div class="list-group-item">
-                        You have no shifts scheduled.
+                        {% if current_user.role in ['Admin', 'Manager'] %}
+                            No shifts have been scheduled yet.
+                        {% else %}
+                            You have no shifts scheduled.
+                        {% endif %}
                     </div>
                 {% endfor %}
             </div>

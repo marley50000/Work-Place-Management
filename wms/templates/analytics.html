@@ -2,33 +2,308 @@
 {% block content %}
     <div class="content-section">
         <h1 class="mb-4">Analytics Dashboard</h1>
-
-        <div class="chart-container" style="position: relative; height:40vh; width:80vw">
-            <canvas id="attendanceChart"></canvas>
+        
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Hours Worked by Employee</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="hoursChart" style="height: 400px;"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Attendance Distribution</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="attendancePieChart" style="height: 400px;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Task Status Overview</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="taskStatusChart" style="height: 400px;"></div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
+    <!-- Include ECharts -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    
     <script>
-        const ctx = document.getElementById('attendanceChart');
+        // Parse the data from Flask
         const chartData = JSON.parse('{{ chart_data | safe }}');
-
-        new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: chartData.labels,
-                datasets: [{
-                    label: 'Total Hours Worked',
-                    data: chartData.data,
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                scales: {
-                    y: {
-                        beginAtZero: true
+        
+        // Function to get theme colors based on current mode
+        function getThemeColors() {
+            const isDarkMode = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+            return {
+                textColor: isDarkMode ? '#f8f9fa' : '#333',
+                axisLineColor: isDarkMode ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.2)',
+                splitLineColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+                backgroundColor: isDarkMode ? 'transparent' : 'transparent'
+            };
+        }
+        
+        // Function to initialize charts
+        function initCharts() {
+            const themeColors = getThemeColors();
+            
+            // Hours worked bar chart
+            const hoursChart = echarts.init(document.getElementById('hoursChart'));
+            const hoursOption = {
+                backgroundColor: themeColors.backgroundColor,
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: {
+                        type: 'shadow'
                     }
-                }
+                },
+                grid: {
+                    left: '3%',
+                    right: '4%',
+                    bottom: '3%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    data: chartData.labels,
+                    axisLabel: {
+                        rotate: 45,
+                        interval: 0,
+                        color: themeColors.textColor
+                    },
+                    axisLine: {
+                        lineStyle: {
+                            color: themeColors.axisLineColor
+                        }
+                    }
+                },
+                yAxis: {
+                    type: 'value',
+                    name: 'Hours',
+                    nameTextStyle: {
+                        color: themeColors.textColor
+                    },
+                    axisLabel: {
+                        color: themeColors.textColor
+                    },
+                    axisLine: {
+                        lineStyle: {
+                            color: themeColors.axisLineColor
+                        }
+                    },
+                    splitLine: {
+                        lineStyle: {
+                            color: themeColors.splitLineColor
+                        }
+                    }
+                },
+                series: [{
+                    name: 'Hours Worked',
+                    type: 'bar',
+                    data: chartData.data,
+                    itemStyle: {
+                        color: function(params) {
+                            // Generate different colors based on value
+                            const value = params.value;
+                            if (value > 40) return '#91cc75'; // Green for high hours
+                            if (value > 20) return '#5470c6'; // Blue for medium hours
+                            return '#ee6666'; // Red for low hours
+                        }
+                    },
+                    label: {
+                        show: true,
+                        position: 'top',
+                        formatter: '{c} hrs',
+                        color: themeColors.textColor
+                    }
+                }]
+            };
+            hoursChart.setOption(hoursOption);
+            
+            // Attendance distribution pie chart
+            const attendancePieChart = echarts.init(document.getElementById('attendancePieChart'));
+            const pieOption = {
+                backgroundColor: themeColors.backgroundColor,
+                tooltip: {
+                    trigger: 'item',
+                    formatter: '{a} <br/>{b}: {c} hrs ({d}%)'
+                },
+                legend: {
+                    orient: 'vertical',
+                    left: 10,
+                    data: chartData.labels,
+                    textStyle: {
+                        color: themeColors.textColor
+                    }
+                },
+                series: [
+                    {
+                        name: 'Hours Worked',
+                        type: 'pie',
+                        radius: ['40%', '70%'],
+                        avoidLabelOverlap: false,
+                        itemStyle: {
+                            borderRadius: 10,
+                            borderColor: themeColors.backgroundColor,
+                            borderWidth: 2
+                        },
+                        label: {
+                            show: false,
+                            position: 'center',
+                            color: themeColors.textColor
+                        },
+                        emphasis: {
+                            label: {
+                                show: true,
+                                fontSize: '18',
+                                fontWeight: 'bold',
+                                color: themeColors.textColor
+                            }
+                        },
+                        labelLine: {
+                            show: false
+                        },
+                        data: chartData.labels.map((label, index) => {
+                            return {
+                                value: chartData.data[index],
+                                name: label
+                            };
+                        })
+                    }
+                ]
+            };
+            attendancePieChart.setOption(pieOption);
+            
+            // Task status chart
+            const taskStatusChart = echarts.init(document.getElementById('taskStatusChart'));
+            const taskOption = {
+                backgroundColor: themeColors.backgroundColor,
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: {
+                        type: 'shadow'
+                    }
+                },
+                legend: {
+                    data: ['Pending', 'In Progress', 'Completed'],
+                    textStyle: {
+                        color: themeColors.textColor
+                    }
+                },
+                grid: {
+                    left: '3%',
+                    right: '4%',
+                    bottom: '3%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    data: chartData.labels,
+                    axisLabel: {
+                        color: themeColors.textColor
+                    },
+                    axisLine: {
+                        lineStyle: {
+                            color: themeColors.axisLineColor
+                        }
+                    }
+                },
+                yAxis: {
+                    type: 'value',
+                    name: 'Tasks',
+                    nameTextStyle: {
+                        color: themeColors.textColor
+                    },
+                    axisLabel: {
+                        color: themeColors.textColor
+                    },
+                    axisLine: {
+                        lineStyle: {
+                            color: themeColors.axisLineColor
+                        }
+                    },
+                    splitLine: {
+                        lineStyle: {
+                            color: themeColors.splitLineColor
+                        }
+                    }
+                },
+                series: [
+                    {
+                        name: 'Pending',
+                        type: 'bar',
+                        stack: 'total',
+                        data: chartData.task_data ? chartData.task_data.pending : Array(chartData.labels.length).fill(0),
+                        itemStyle: {
+                            color: '#ee6666'
+                        }
+                    },
+                    {
+                        name: 'In Progress',
+                        type: 'bar',
+                        stack: 'total',
+                        data: chartData.task_data ? chartData.task_data.in_progress : Array(chartData.labels.length).fill(0),
+                        itemStyle: {
+                            color: '#5470c6'
+                        }
+                    },
+                    {
+                        name: 'Completed',
+                        type: 'bar',
+                        stack: 'total',
+                        data: chartData.task_data ? chartData.task_data.completed : Array(chartData.labels.length).fill(0),
+                        itemStyle: {
+                            color: '#91cc75'
+                        }
+                    }
+                ]
+            };
+            taskStatusChart.setOption(taskOption);
+            
+            // Store chart instances for resize
+            window.chartInstances = {
+                hoursChart,
+                attendancePieChart,
+                taskStatusChart
+            };
+        }
+        
+        // Initialize charts when DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            initCharts();
+            
+            // Listen for theme changes
+            const darkModeToggle = document.getElementById('darkModeToggle');
+            if (darkModeToggle) {
+                darkModeToggle.addEventListener('click', function() {
+                    // Give time for the theme to change
+                    setTimeout(function() {
+                        // Dispose and reinitialize charts with new theme
+                        Object.values(window.chartInstances).forEach(chart => chart.dispose());
+                        initCharts();
+                    }, 100);
+                });
             }
+            
+            // Handle window resize
+            window.addEventListener('resize', function() {
+                Object.values(window.chartInstances).forEach(chart => chart.resize());
+            });
         });
     </script>
 {% endblock content %}

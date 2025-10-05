@@ -5,30 +5,36 @@
             {{ form.hidden_tag() }}
             <fieldset class="form-group">
                 <legend class="border-bottom mb-4">{{ legend }}</legend>
-                <div class="form-group">
-                    {{ form.start_time.label(class="form-control-label") }}
+                <div class="form-group mb-3">
+                    {{ form.start_time.label(class="form-label") }}
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-calendar-alt"></i></span>
+                        {{ form.start_time(class="form-control " + ("is-invalid" if form.start_time.errors else ""), type="datetime-local") }}
+                    </div>
                     {% if form.start_time.errors %}
-                        {{ form.start_time(class="form-control form-control-lg is-invalid") }}
-                        <div class="invalid-feedback">
+                        <div class="invalid-feedback d-block">
                             {% for error in form.start_time.errors %}
-                                <span>{{ error }}</span>
+                                <small><i class="fas fa-exclamation-triangle me-1"></i>{{ error }}</small>
                             {% endfor %}
                         </div>
                     {% else %}
-                        {{ form.start_time(class="form-control form-control-lg") }}
+                        <small class="form-text text-muted">Select the start date and time for this shift</small>
                     {% endif %}
                 </div>
-                <div class="form-group">
-                    {{ form.end_time.label(class="form-control-label") }}
+                <div class="form-group mb-3">
+                    {{ form.end_time.label(class="form-label") }}
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-calendar-alt"></i></span>
+                        {{ form.end_time(class="form-control " + ("is-invalid" if form.end_time.errors else ""), type="datetime-local") }}
+                    </div>
                     {% if form.end_time.errors %}
-                        {{ form.end_time(class="form-control form-control-lg is-invalid") }}
-                        <div class="invalid-feedback">
+                        <div class="invalid-feedback d-block">
                             {% for error in form.end_time.errors %}
-                                <span>{{ error }}</span>
+                                <small><i class="fas fa-exclamation-triangle me-1"></i>{{ error }}</small>
                             {% endfor %}
                         </div>
                     {% else %}
-                        {{ form.end_time(class="form-control form-control-lg") }}
+                        <small class="form-text text-muted">Select the end date and time for this shift</small>
                     {% endif %}
                 </div>
                 <div class="form-group">
@@ -51,3 +57,55 @@
         </form>
     </div>
 {% endblock content %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Set default values for shift times
+    const startTimeInput = document.querySelector('input[type="datetime-local"]');
+    const endTimeInput = document.querySelectorAll('input[type="datetime-local"]')[1];
+    
+    if (startTimeInput && !startTimeInput.value) {
+        const now = new Date();
+        const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+        
+        // Set start time to 9:00 AM tomorrow (format: YYYY-MM-DDTHH:MM)
+        tomorrow.setHours(9, 0);
+        startTimeInput.value = tomorrow.toISOString().slice(0, 16);
+        
+        // Set end time to 5:00 PM tomorrow (8 hour shift)
+        tomorrow.setHours(17, 0);
+        endTimeInput.value = tomorrow.toISOString().slice(0, 16);
+    }
+    
+    // Add validation to ensure end time is after start time
+    function validateShiftTimes() {
+        if (startTimeInput.value && endTimeInput.value) {
+            const startTime = new Date(startTimeInput.value);
+            const endTime = new Date(endTimeInput.value);
+            
+            if (endTime <= startTime) {
+                endTimeInput.setCustomValidity('End time must be after start time');
+                endTimeInput.reportValidity();
+            } else {
+                endTimeInput.setCustomValidity('');
+            }
+        }
+    }
+    
+    // Clear any previous validation errors when user starts typing
+    startTimeInput.addEventListener('input', function() {
+        this.classList.remove('is-invalid');
+        validateShiftTimes();
+    });
+    
+    endTimeInput.addEventListener('input', function() {
+        this.classList.remove('is-invalid');
+        validateShiftTimes();
+    });
+    
+    startTimeInput.addEventListener('change', validateShiftTimes);
+    endTimeInput.addEventListener('change', validateShiftTimes);
+});
+</script>
+{% endblock scripts %}

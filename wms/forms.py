@@ -7,7 +7,11 @@ from flask_wtf.file import FileField, FileAllowed
 from wms.models import User, Asset
 
 def user_query():
-    return User.query
+    try:
+        return User.query.all()
+    except Exception as e:
+        print(f"DEBUG: Error in user_query: {str(e)}")
+        return []
 
 class RegistrationForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired(), Length(min=2, max=20)])
@@ -34,17 +38,17 @@ class LoginForm(FlaskForm):
 
 class TaskForm(FlaskForm):
     title = StringField('Title', validators=[DataRequired()])
-    description = TextAreaField('Description', validators=[DataRequired()])
+    description = TextAreaField('Description', validators=[Optional()])
     priority = SelectField('Priority', choices=[('Low', 'Low'), ('Medium', 'Medium'), ('High', 'High')],
                            validators=[DataRequired()])
-    deadline = DateTimeField('Deadline', format='%Y-%m-%d %H:%M:%S', validators=[DataRequired()])
+    deadline = DateField('Deadline', format='%Y-%m-%d', validators=[DataRequired()])
     assigned_to = QuerySelectField('Assign To', query_factory=user_query, get_label='username', allow_blank=False,
                                    validators=[DataRequired()])
     submit = SubmitField('Create Task')
 
 class ShiftForm(FlaskForm):
-    start_time = DateTimeField('Start Time', format='%Y-%m-%d %H:%M:%S', validators=[DataRequired()])
-    end_time = DateTimeField('End Time', format='%Y-%m-%d %H:%M:%S', validators=[DataRequired()])
+    start_time = DateTimeField('Start Time', format='%Y-%m-%dT%H:%M', validators=[DataRequired()])
+    end_time = DateTimeField('End Time', format='%Y-%m-%dT%H:%M', validators=[DataRequired()])
     user = QuerySelectField('Employee', query_factory=user_query, get_label='username', allow_blank=False,
                             validators=[DataRequired()])
     submit = SubmitField('Create Shift')
@@ -114,3 +118,10 @@ class AssetForm(FlaskForm):
     name = StringField('Asset Name', validators=[DataRequired()])
     description = TextAreaField('Description', validators=[Optional()])
     submit = SubmitField('Save Asset')
+
+
+class AdminPasswordResetForm(FlaskForm):
+    email = StringField('User Email', validators=[DataRequired(), Email()])
+    new_password = PasswordField('New Password', validators=[DataRequired()])
+    confirm_password = PasswordField('Confirm New Password', validators=[DataRequired(), EqualTo('new_password')])
+    submit = SubmitField('Reset Password')

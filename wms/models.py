@@ -146,13 +146,14 @@ class Announcement(db.Model):
 
 class Message(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    content = db.Column(Text, nullable=False)
-    timestamp = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
+    content = db.Column(db.Text, nullable=False)
+    date_sent = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
     sender_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     recipient_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-
-    sender = db.relationship('User', foreign_keys=[sender_id], backref='sent_messages')
-    recipient = db.relationship('User', foreign_keys=[recipient_id], backref='received_messages')
+    read = db.Column(db.Boolean, default=False)  # Add this line
+    
+    sender = db.relationship('User', foreign_keys=[sender_id], backref='messages_sent')
+    recipient = db.relationship('User', foreign_keys=[recipient_id], backref='messages_received')
 
     def __repr__(self):
         return f"Message from '{self.sender.username}' to '{self.recipient.username}'"

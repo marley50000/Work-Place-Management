@@ -1,28 +1,60 @@
 {% extends "base.html" %}
 {% block content %}
     <div class="content-section">
-        <h2 class="mb-4">Conversation with {{ recipient.username }}</h2>
-        <div class="message-history mb-4" style="height: 400px; overflow-y: scroll; border: 1px solid #ccc; padding: 10px;">
-            {% for message in messages %}
-                <div class="message mb-2 {% if message.sender_id == current_user.id %}text-end{% endif %}">
-                    <small class="fw-bold">{{ message.sender.username }}</small>
-                    <div class="p-2 rounded {% if message.sender_id == current_user.id %}bg-primary text-white{% else %}bg-light{% endif %}">
-                        {{ message.content }}
-                    </div>
-                    <small class="text-muted">{{ message.timestamp.strftime('%Y-%m-%d %H:%M') }}</small>
-                </div>
-            {% else %}
-                <p>No messages yet. Start the conversation!</p>
-            {% endfor %}
-        </div>
-        <form method="POST" action="">
-            {{ form.hidden_tag() }}
-            <fieldset class="form-group">
-                {{ form.content(class="form-control", rows="3") }}
-            </fieldset>
-            <div class="form-group mt-2">
-                {{ form.submit(class="btn btn-primary") }}
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h3 class="mb-0">
+                    <i class="fas fa-comment-dots me-2"></i>
+                    Conversation with {{ recipient.username }}
+                </h3>
+                <a href="{{ url_for('main.messages') }}" class="btn btn-sm btn-light">
+                    <i class="fas fa-arrow-left me-1"></i> Back to Messages
+                </a>
             </div>
-        </form>
+            <div class="card-body">
+                <div class="message-history mb-4" style="height: 400px; overflow-y: auto; border: 1px solid #eee; border-radius: 8px; padding: 15px; background-color: #f8f9fa;">
+                    {% for message in messages %}
+                        <div class="message mb-3 {% if message.sender_id == current_user.id %}text-end{% endif %}">
+                            <div class="d-inline-block" style="max-width: 80%;">
+                                <div class="p-3 rounded-3 {% if message.sender_id == current_user.id %}bg-primary text-white{% else %}bg-light border{% endif %}" style="box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
+                                    {{ message.content }}
+                                </div>
+                                <div class="mt-1 d-flex {% if message.sender_id == current_user.id %}justify-content-end{% endif %}">
+                                    <small class="text-muted">
+                                        <i class="fas fa-clock me-1"></i>
+                                        {{ message.date_sent.strftime('%Y-%m-%d %H:%M') }}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-comments fa-3x mb-3 text-muted"></i>
+                            <p class="lead">No messages yet. Start the conversation!</p>
+                        </div>
+                    {% endfor %}
+                </div>
+                <form method="POST" action="">
+                    {{ form.hidden_tag() }}
+                    <div class="input-group">
+                        {{ form.content(class="form-control", rows="2", placeholder="Type your message here...", style="resize: none;") }}
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-paper-plane me-1"></i> Send
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Auto-scroll to bottom of message history
+        const messageHistory = document.querySelector('.message-history');
+        messageHistory.scrollTop = messageHistory.scrollHeight;
+        
+        // Focus on message input
+        document.querySelector('textarea').focus();
+    });
+    </script>
 {% endblock content %}

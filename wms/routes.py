@@ -8,13 +8,12 @@ from wms.models import User, Task, Shift, Attendance, LeaveRequest, Document, Go
 from wms.forms import (RegistrationForm, LoginForm, TaskForm, ShiftForm,
                        LeaveRequestForm, EmptyForm, DocumentForm, GoalForm,
                        EvaluationForm, AnnouncementForm, MessageForm,
-                       AssetForm, PayslipUploadForm)  # ← added at the end
+                       AssetForm, PayslipUploadForm, AdminPasswordResetForm)
 from .decorators import roles_required
 from werkzeug.utils import secure_filename
 from flask import current_app, jsonify
 from sqlalchemy import or_
 import json
-from collections import Counter
 
 main_bp = Blueprint('main', __name__)
 
@@ -22,14 +21,53 @@ main_bp = Blueprint('main', __name__)
 @main_bp.route("/home")
 @login_required
 def home():
-    tasks = current_user.tasks_assigned_to
-    shifts = current_user.shifts
+    # For admins/managers, show both tasks assigned to them AND tasks they created
+    if current_user.role in ['Admin', 'Manager']:
+        # Get tasks assigned to the admin/manager
+        assigned_tasks = current_user.tasks_assigned_to
+        # Get tasks created by the admin/manager
+        created_tasks = current_user.tasks_created_by
+        # Combine both sets of tasks (avoiding duplicates)
+        all_admin_tasks = list(set(assigned_tasks + created_tasks))
+        tasks = all_admin_tasks
+        print(f"DEBUG: Admin viewing tasks. Assigned: {len(assigned_tasks)}, Created: {len(created_tasks)}, Total: {len(tasks)}")
+    else:
+        # Regular users only see tasks assigned to them
+        tasks = current_user.tasks_assigned_to
+    # Get shifts based on user role
+    if current_user.role in ['Admin', 'Manager']:
+        # Admins and Managers see all shifts
+        from datetime import datetime, timedelta
+        now = datetime.utcnow()
+        # Include shifts from today (allow some buffer for recently created shifts)
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        all_shifts = Shift.query.all()
+        upcoming_shifts = [shift for shift in all_shifts if shift.start_time >= today_start]
+        upcoming_shifts_count = len(upcoming_shifts)
+        
+        # Debug: Print shift information
+        print(f"DEBUG: Admin viewing all shifts. Total shifts: {len(all_shifts)}, Upcoming: {upcoming_shifts_count}")
+        print(f"DEBUG: Current time (UTC): {now}")
+        print(f"DEBUG: Filter start time: {today_start}")
+        for shift in all_shifts[:5]:  # Show first 5 shifts for debugging
+            print(f"DEBUG: Shift ID {shift.id}: {shift.user.username} - {shift.start_time} to {shift.end_time}")
+    else:
+        # Regular users see only their own shifts
+        shifts = current_user.shifts
+        # Filter to show only upcoming shifts (today and future)
+        from datetime import datetime, timedelta
+        now = datetime.utcnow()
+        # Include shifts from today (allow some buffer for recently created shifts)
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        upcoming_shifts = [shift for shift in shifts if shift.start_time >= today_start]
+        upcoming_shifts_count = len(upcoming_shifts)
+    
     last_attendance = Attendance.query.filter_by(user_id=current_user.id).order_by(Attendance.clock_in_time.desc()).first()
     attendance_history = Attendance.query.filter_by(user_id=current_user.id).order_by(Attendance.clock_in_time.desc()).limit(7).all()
     leave_requests = current_user.leave_requests
     goals = Goal.query.filter_by(user=current_user).filter(Goal.status != 'Archived').all()
     clock_form = EmptyForm()
-    return render_template('index.html', title='Home', tasks=tasks, shifts=shifts, last_attendance=last_attendance, attendance_history=attendance_history, leave_requests=leave_requests, goals=goals, clock_form=clock_form)
+    return render_template('index.html', title='Home', tasks=tasks, shifts=upcoming_shifts, upcoming_shifts_count=upcoming_shifts_count, last_attendance=last_attendance, attendance_history=attendance_history, leave_requests=leave_requests, goals=goals, clock_form=clock_form)
 
 @main_bp.route("/register", methods=['GET', 'POST'])
 def register():
@@ -71,17 +109,28 @@ def logout():
 @roles_required('Admin', 'Manager')
 def new_task():
     form = TaskForm()
+    print(f"DEBUG: new_task route accessed by {current_user.username} with role {current_user.role}")
+    print(f"DEBUG: Form validate_on_submit: {form.validate_on_submit()}")
+    print(f"DEBUG: Form errors: {form.errors}")
+    
     if form.validate_on_submit():
-        task = Task(title=form.title.data,
-                    description=form.description.data,
-                    priority=form.priority.data,
-                    deadline=form.deadline.data,
-                    assigned_to=form.assigned_to.data,
-                    assigned_by=current_user)
-        db.session.add(task)
-        db.session.commit()
-        flash('The task has been created!', 'success')
-        return redirect(url_for('main.home'))
+        try:
+            task = Task(title=form.title.data,
+                        description=form.description.data,
+                        priority=form.priority.data,
+                        deadline=form.deadline.data,
+                        assigned_to=form.assigned_to.data,
+                        assigned_by=current_user)
+            db.session.add(task)
+            db.session.commit()
+            flash('The task has been created!', 'success')
+            print(f"DEBUG: Task created successfully: {task.title} assigned to {task.assigned_to.username}")
+            return redirect(url_for('main.home'))
+        except Exception as e:
+            print(f"DEBUG: Error creating task: {str(e)}")
+            flash(f'Error creating task: {str(e)}', 'danger')
+            db.session.rollback()
+    
     return render_template('create_task.html', title='New Task', form=form, legend='New Task')
 
 
@@ -229,9 +278,27 @@ def analytics():
                 total_duration += record.clock_out_time - record.clock_in_time
         attendance_data[user.username] = total_duration.total_seconds() / 3600
 
+    # Get task data by user and status
+    task_data = {
+        'pending': [],
+        'in_progress': [],
+        'completed': []
+    }
+    
+    for user in users:
+        # Count tasks by status for each user
+        pending_count = Task.query.filter_by(assigned_to=user).filter(Task.status == 'Pending').count()
+        in_progress_count = Task.query.filter_by(assigned_to=user).filter(Task.status == 'In Progress').count()
+        completed_count = Task.query.filter_by(assigned_to=user).filter(Task.status == 'Completed').count()
+        
+        task_data['pending'].append(pending_count)
+        task_data['in_progress'].append(in_progress_count)
+        task_data['completed'].append(completed_count)
+
     chart_data = {
         'labels': list(attendance_data.keys()),
         'data': list(attendance_data.values()),
+        'task_data': task_data
     }
 
     return render_template('analytics.html', title='Analytics Dashboard', chart_data=json.dumps(chart_data))
@@ -298,23 +365,7 @@ def view_evaluations(user_id):
         abort(403)
 
     evaluations = user.evaluations_received
-
-    # Calculate statistics for visualizations
-    ratings = [e.rating for e in evaluations]
-    average_rating = sum(ratings) / len(ratings) if ratings else 0
-
-    # For pie chart: distribution of ratings
-    rating_counts = Counter(ratings)
-    rating_labels = [str(i) for i in range(1, 6)]
-    rating_data = [rating_counts[i] for i in range(1, 6)]
-
-    return render_template('view_evaluations.html',
-                           title='View Evaluations',
-                           user=user,
-                           evaluations=evaluations,
-                           average_rating=f"{average_rating:.2f}",
-                           rating_labels=json.dumps(rating_labels),
-                           rating_data=json.dumps(rating_data))
+    return render_template('view_evaluations.html', title='View Evaluations', user=user, evaluations=evaluations)
 
 
 @main_bp.route("/announcements")
@@ -383,37 +434,62 @@ def delete_announcement(announcement_id):
 @main_bp.route("/messages")
 @login_required
 def messages():
-    # Get all users the current user has had a conversation with
-    sent_to = db.session.query(Message.recipient_id).filter(Message.sender_id == current_user.id)
-    received_from = db.session.query(Message.sender_id).filter(Message.recipient_id == current_user.id)
-    user_ids_with_conversations = list(set([item[0] for item in sent_to.union(received_from)]))
-
-    conversations = User.query.filter(User.id.in_(user_ids_with_conversations)).all()
+    # Get search query from request args
+    search_query = request.args.get('search', '')
+    
+    # Get all users except current user
     all_users = User.query.filter(User.id != current_user.id).all()
+    
+    # If search query is provided, filter users
+    if search_query:
+        all_users = [user for user in all_users if search_query.lower() in user.username.lower() or 
+                     (user.email and search_query.lower() in user.email.lower())]
+    
+    # Get users with whom the current user has conversations
+    conversations = User.query.join(Message, 
+        ((Message.sender_id == User.id) & (Message.recipient_id == current_user.id)) | 
+        ((Message.recipient_id == User.id) & (Message.sender_id == current_user.id))
+    ).filter(User.id != current_user.id).distinct().all()
+    
+    # Get unread messages
+    unread_by_user = {}
+    for user in conversations:
+        unread_count = Message.query.filter_by(sender_id=user.id, recipient_id=current_user.id, read=False).count()
+        if unread_count > 0:
+            unread_by_user[user.id] = unread_count
+    
+    return render_template('messages.html', title='Messages', 
+                          all_users=all_users, conversations=conversations, 
+                          unread_by_user=unread_by_user)
 
-    return render_template('messages.html', title='Messages', conversations=conversations, all_users=all_users)
 
-
-@main_bp.route("/messages/<int:recipient_id>", methods=['GET', 'POST'])
+@main_bp.route("/conversation/<int:recipient_id>", methods=['GET', 'POST'])
 @login_required
 def conversation(recipient_id):
     recipient = User.query.get_or_404(recipient_id)
     form = MessageForm()
+    
     if form.validate_on_submit():
-        msg = Message(content=form.content.data,
-                      sender=current_user,
-                      recipient=recipient)
-        db.session.add(msg)
+        message = Message(content=form.content.data, sender=current_user, recipient=recipient)
+        db.session.add(message)
         db.session.commit()
+        flash('Your message has been sent.', 'success')
         return redirect(url_for('main.conversation', recipient_id=recipient_id))
-
-    messages = Message.query.filter(
-        or_(
-            (Message.sender_id == current_user.id) & (Message.recipient_id == recipient_id),
-            (Message.sender_id == recipient_id) & (Message.recipient_id == current_user.id)
-        )
-    ).order_by(Message.timestamp.asc()).all()
-
+    
+    # Get all messages between current user and recipient
+    sent_messages = Message.query.filter_by(sender=current_user, recipient=recipient).all()
+    received_messages = Message.query.filter_by(sender=recipient, recipient=current_user).all()
+    
+    # Mark received messages as read
+    for message in received_messages:
+        if not message.read:
+            message.read = True
+    
+    db.session.commit()
+    
+    # Combine and sort messages by date
+    messages = sorted(sent_messages + received_messages, key=lambda x: x.date_sent)
+    
     return render_template('conversation.html', title=f"Conversation with {recipient.username}", form=form, recipient=recipient, messages=messages)
 
 
@@ -479,7 +555,7 @@ def checkin_asset(asset_id):
 # --- NEW ROUTE -------------------------------------------------------
 @main_bp.route("/payslip/upload", methods=['GET', 'POST'])
 @login_required
-@roles_required('Admin', 'Manager')        # ← NEW guard (access control)
+@roles_required('Admin', 'Manager')        # ← NEW line (access control)
 def upload_payslip():
     form = PayslipUploadForm()
     if form.validate_on_submit():
@@ -511,6 +587,14 @@ def my_documents():
         title='My Documents',
         docs=docs)
 
+
+# Add this function at the top of the file with other imports
+@main_bp.context_processor
+def inject_unread_messages_count():
+    if current_user.is_authenticated:
+        unread_count = Message.query.filter_by(recipient_id=current_user.id, read=False).count()
+        return {'unread_messages_count': unread_count}
+    return {'unread_messages_count': 0}
 
 # Add these imports at the top of the file
 import os
@@ -568,9 +652,18 @@ def profile_picture():
     return render_template('profile_picture.html', title='Profile Picture', form=form)
 
 
-@main_bp.route("/manage_employees")
+@main_bp.route("/admin/reset_password", methods=['GET', 'POST'])
 @login_required
-@roles_required('Admin', 'Manager')
-def manage_employees():
-    users = User.query.all()
-    return render_template('manage_employees.html', title='Manage Employees', users=users)
+@roles_required('Admin')
+def admin_reset_password():
+    form = AdminPasswordResetForm()
+    if form.validate_on_submit():
+        user = User.query.filter_by(email=form.email.data).first()
+        if user:
+            user.set_password(form.new_password.data)
+            db.session.commit()
+            flash(f'Password has been reset for {user.username}', 'success')
+            return redirect(url_for('main.home'))
+        else:
+            flash('User with that email not found', 'danger')
+    return render_template('admin_reset_password.html', title='Admin Password Reset', form=form)

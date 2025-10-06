@@ -103,6 +103,15 @@
                     {% endif %}
                 </ul>
                 <ul class="navbar-nav">
+                    <!-- Global Search -->
+                    <li class="nav-item mx-3">
+                        <div class="search-container position-relative">
+                            <input type="text" class="form-control search-input" id="globalSearch" placeholder="Search tasks, users, documents..." style="width: 250px;">
+                            <i class="fas fa-search search-icon position-absolute" style="right: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
+                            <div class="search-results position-absolute w-100 mt-1 bg-white rounded shadow-lg" id="searchResults" style="display: none; max-height: 300px; overflow-y: auto; z-index: 1000;"></div>
+                        </div>
+                    </li>
+                    
                     <!-- Dark Mode Toggle -->
                     <li class="nav-item me-2">
                         <button class="btn btn-outline-light" id="darkModeToggle">
@@ -139,11 +148,19 @@
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
-                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                        <i class="fas {% if category == 'success' %}fa-check-circle{% elif category == 'danger' %}fa-exclamation-circle{% elif category == 'warning' %}fa-exclamation-triangle{% else %}fa-info-circle{% endif %} me-2"></i>
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    <div class="alert alert-{{ category }} alert-dismissible fade show enhanced-flash" role="alert">
+                        <i class="fas {% if category == 'success' %}fa-check-circle{% elif category == 'danger' %}fa-exclamation-circle{% elif category == 'warning' %}fa-exclamation-triangle{% else %}fa-info-circle{% endif %} me-2 flash-icon"></i>
+                        <div class="flash-content">
+                            <span class="flash-message">{{ message }}</span>
+                        </div>
+                        <button type="button" class="btn-close flash-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
+                    <script>
+                        // Convert flash messages to smart notifications
+                        setTimeout(() => {
+                            showNotification('{{ message }}', '{{ category }}', 5000);
+                        }, 100);
+                    </script>
                 {% endfor %}
             {% endif %}
         {% endwith %}
@@ -156,7 +173,12 @@
   <div class="container">
     <p class="mb-0">
       © 2025 Workforce Management System. By:
-      <span style="color: #007BFF; font-weight: 600;">Spark from Dadds</span>.
+     <span style="color: #007BFF; font-weight: 600;">
+  Spark from Dadds
+</span>
+<img src="{{ url_for('static', filename='uploads/company-logo.PNG') }}" 
+     alt="Company Logo" 
+     style="height: 20px; vertical-align: middle; margin-left: 8px;">
       All rights reserved.
     </p>
   </div>
@@ -221,10 +243,71 @@
             }
             
             // Set initial footer class
-            updateFooter(htmlElement.getAttribute('data-bs-theme'));
+        updateFooter(htmlElement.getAttribute('data-bs-theme'));
+        
+        // Global Search Functionality
+        const searchInput = document.getElementById('globalSearch');
+        const searchResults = document.getElementById('searchResults');
+        let searchTimeout;
+        
+        searchInput.addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            const query = this.value.trim();
+            
+            if (query.length < 2) {
+                searchResults.style.display = 'none';
+                return;
+            }
+            
+            searchTimeout = setTimeout(() => {
+                performSearch(query);
+            }, 300);
         });
         
-        // Initialize particles.js
+        searchInput.addEventListener('focus', function() {
+            if (this.value.trim().length >= 2) {
+                searchResults.style.display = 'block';
+            }
+        });
+        
+        document.addEventListener('click', function(e) {
+            if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+                searchResults.style.display = 'none';
+            }
+        });
+        
+        function performSearch(query) {
+            // Simulate search results (replace with actual AJAX call)
+            const mockResults = [
+                { type: 'task', title: 'Complete project documentation', url: '/tasks/1' },
+                { type: 'user', title: 'John Doe', url: '/users/1' },
+                { type: 'document', title: 'Company Policy.pdf', url: '/documents/1' }
+            ].filter(item => item.title.toLowerCase().includes(query.toLowerCase()));
+            
+            displaySearchResults(mockResults);
+        }
+        
+        function displaySearchResults(results) {
+            if (results.length === 0) {
+                searchResults.innerHTML = '<div class="p-3 text-muted">No results found</div>';
+            } else {
+                searchResults.innerHTML = results.map(result => `
+                    <a href="${result.url}" class="d-block p-3 text-decoration-none search-result-item">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-${result.type === 'task' ? 'tasks' : result.type === 'user' ? 'user' : 'file'} me-2 text-primary"></i>
+                            <div>
+                                <div class="fw-medium text-dark">${result.title}</div>
+                                <small class="text-muted">${result.type}</small>
+                            </div>
+                        </div>
+                    </a>
+                `).join('');
+            }
+            searchResults.style.display = 'block';
+        }
+    });
+    
+    // Initialize particles.js
         particlesJS('particles-js', {
             particles: {
                 number: { value: 50, density: { enable: true, value_area: 800 } },
@@ -262,6 +345,49 @@
                 }
             },
             retina_detect: true
+        });
+        
+        // Keyboard Shortcuts System
+        document.addEventListener('keydown', function(e) {
+            // Only trigger shortcuts when not typing in input fields
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                return;
+            }
+            
+            // Ctrl/Cmd + K - Focus search
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                e.preventDefault();
+                searchInput.focus();
+            }
+            
+            // Ctrl/Cmd + N - New task (if user has permission)
+            if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+                e.preventDefault();
+                // Check if user can create tasks (admin/manager)
+                if (document.querySelector('[href*="create_task"]')) {
+                    window.location.href = '/create_task';
+                } else {
+                    showNotification('You don\'t have permission to create tasks', 'warning');
+                }
+            }
+            
+            // Ctrl/Cmd + L - Leave request
+            if ((e.ctrlKey || e.metaKey) && e.key === 'l') {
+                e.preventDefault();
+                window.location.href = '/create_leave_request';
+            }
+            
+            // Ctrl/Cmd + M - Messages
+            if ((e.ctrlKey || e.metaKey) && e.key === 'm') {
+                e.preventDefault();
+                window.location.href = '/messages';
+            }
+            
+            // Escape - Close modals, clear search, etc.
+            if (e.key === 'Escape') {
+                searchResults.style.display = 'none';
+                searchInput.value = '';
+            }
         });
         
         // Custom cursor effects
